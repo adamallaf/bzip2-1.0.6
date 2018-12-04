@@ -48,6 +48,8 @@ void makeMaps_d ( DState* s )
          v = (s->bsBuff >>                        \
              (s->bsLive-nnn)) & ((1 << nnn)-1);   \
          s->bsLive -= nnn;                        \
+         printf(">> bsBuff: %02x bsLive: %d ", s->bsBuff, s->bsLive);\
+         printf(" read(%d): %02x <<\n", nnn, v);  \
          vvv = v;                                 \
          break;                                   \
       }                                           \
@@ -248,6 +250,8 @@ Int32 BZ2_decompress ( DState* s )
       GET_UCHAR(BZ_X_BCRC_4, uc);
       s->storedBlockCRC = (s->storedBlockCRC << 8) | ((UInt32)uc);
 
+      printf("\n>>>> block CRC OK! %08x <<<<\n\n", (int)s->storedBlockCRC);
+
       GET_BITS(BZ_X_RANDBIT, s->blockRandomised, 1);
 
       s->origPtr = 0;
@@ -258,10 +262,14 @@ Int32 BZ2_decompress ( DState* s )
       GET_UCHAR(BZ_X_ORIGPTR_3, uc);
       s->origPtr = (s->origPtr << 8) | ((Int32)uc);
 
+      printf("\n>>>> origPtr = %06x (24 bit) <<<<\n\n", (int)s->origPtr);
+
       if (s->origPtr < 0)
          RETURN(BZ_DATA_ERROR);
       if (s->origPtr > 10 + 100000*s->blockSize100k) 
          RETURN(BZ_DATA_ERROR);
+
+      printf(">>>> origPtr OK <<<<\n\n");
 
       /*--- Receive the mapping table ---*/
       for (i = 0; i < 16; i++) {
@@ -270,6 +278,8 @@ Int32 BZ2_decompress ( DState* s )
             s->inUse16[i] = True; else 
             s->inUse16[i] = False;
       }
+
+      printf(">>>> mapping table part 1 OK <<<<\n\n");
 
       for (i = 0; i < 256; i++) s->inUse[i] = False;
 
@@ -282,6 +292,8 @@ Int32 BZ2_decompress ( DState* s )
       makeMaps_d ( s );
       if (s->nInUse == 0) RETURN(BZ_DATA_ERROR);
       alphaSize = s->nInUse+2;
+
+      printf(">>>> mapping table part 2 OK <<<<\n\n");
 
       /*--- Now the selectors ---*/
       GET_BITS(BZ_X_SELECTOR_1, nGroups, 3);
@@ -299,6 +311,8 @@ Int32 BZ2_decompress ( DState* s )
          s->selectorMtf[i] = j;
       }
 
+      printf(">>>> selectors OK <<<<\n\n");
+
       /*--- Undo the MTF values for the selectors. ---*/
       {
          UChar pos[BZ_N_GROUPS], tmp, v;
@@ -313,12 +327,17 @@ Int32 BZ2_decompress ( DState* s )
          }
       }
 
+      printf(">>>> undo MTF values for the selectors OK <<<<\n\n");
+
       /*--- Now the coding tables ---*/
       for (t = 0; t < nGroups; t++) {
          GET_BITS(BZ_X_CODING_1, curr, 5);
          for (i = 0; i < alphaSize; i++) {
             while (True) {
-               if (curr < 1 || curr > 20) RETURN(BZ_DATA_ERROR);
+               if (curr < 1 || curr > 20) {
+                   printf(">>>> curr: %d <<<<\n\n", (int)curr);
+                   RETURN(BZ_DATA_ERROR);
+               }
                GET_BIT(BZ_X_CODING_2, uc);
                if (uc == 0) break;
                GET_BIT(BZ_X_CODING_3, uc);
@@ -327,6 +346,8 @@ Int32 BZ2_decompress ( DState* s )
             s->len[t][i] = curr;
          }
       }
+
+      printf(">>>> coding tables OK <<<<\n\n");
 
       /*--- Create the Huffman decoding tables ---*/
       for (t = 0; t < nGroups; t++) {
@@ -345,6 +366,8 @@ Int32 BZ2_decompress ( DState* s )
          );
          s->minLens[t] = minLen;
       }
+
+      printf(">>>> Huffman decoding tables OK <<<<\n\n");
 
       /*--- Now the MTF values ---*/
 
@@ -485,6 +508,8 @@ Int32 BZ2_decompress ( DState* s )
          }
       }
 
+      printf(">>>> nblock vlaue: %08x <<<<\n\n", (int)nblock);
+
       /* Now we know what nblock is, we can do a better sanity
          check on s->origPtr.
       */
@@ -592,6 +617,8 @@ Int32 BZ2_decompress ( DState* s )
       GET_UCHAR(BZ_X_ENDHDR_6, uc);
       if (uc != 0x90) RETURN(BZ_DATA_ERROR);
 
+      printf("\n>>>> end magic OK! <<<<\n");
+
       s->storedCombinedCRC = 0;
       GET_UCHAR(BZ_X_CCRC_1, uc);
       s->storedCombinedCRC = (s->storedCombinedCRC << 8) | ((UInt32)uc);
@@ -601,6 +628,8 @@ Int32 BZ2_decompress ( DState* s )
       s->storedCombinedCRC = (s->storedCombinedCRC << 8) | ((UInt32)uc);
       GET_UCHAR(BZ_X_CCRC_4, uc);
       s->storedCombinedCRC = (s->storedCombinedCRC << 8) | ((UInt32)uc);
+
+      printf("\n>>>> stream CRC OK! %08x <<<<\n\n", (int)s->storedCombinedCRC);
 
       s->state = BZ_X_IDLE;
       RETURN(BZ_STREAM_END);
