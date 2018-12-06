@@ -64,6 +64,7 @@ void makeMaps_d ( DState* s )
       s->strm->total_in_lo32++;                   \
       if (s->strm->total_in_lo32 == 0)            \
          s->strm->total_in_hi32++;                \
+      printf(">> total input: %08x%08x <<\n", s->strm->total_in_hi32, s->strm->total_in_lo32);\
    }
 
 #define GET_UCHAR(lll,uuu)                        \
@@ -367,7 +368,7 @@ Int32 BZ2_decompress ( DState* s )
          s->minLens[t] = minLen;
       }
 
-      printf(">>>> Huffman decoding tables OK <<<<\n\n");
+      printf("\n\n>>>> Huffman decoding tables OK <<<<\n\n");
 
       /*--- Now the MTF values ---*/
 
